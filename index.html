@@ -852,7 +852,8 @@
     function buildTwoStops(originPool, middleByHubA, destPool, scope) {
         scope = scope || {};
         const carriers = scope.carriers || null;
-        const originCode = originPool.length ? originPool[0].origin_code : '';
+        const originCodes = new Set(originPool.map(f => f.origin_code).filter(Boolean));
+        const destCodes = new Set(destPool.map(f => f.dest_code).filter(Boolean));
         const leg3ByHubB = {};
         destPool.forEach(f => { if (!f.origin_code) return; (leg3ByHubB[f.origin_code] = leg3ByHubB[f.origin_code] || []).push(f); });
         const out = [];
@@ -864,11 +865,12 @@
             if (!leg1ValidDays.length) return;
             const hubA = l1.dest_code;
             if (!hubA || !middleByHubA[hubA]) return;
+            if (destCodes.has(hubA) || originCodes.has(hubA)) return;
             middleByHubA[hubA].forEach(l2 => {
                 if (!areAffiliatedAirlines(l1.airline_name, l2.airline_name)) return;
                 if (carriers && !carriers.has(l2.airline_name)) return;
                 const hubB = l2.dest_code;
-                if (!hubB || hubB === originCode || hubB === hubA || !leg3ByHubB[hubB]) return;
+                if (!hubB || hubB === hubA || originCodes.has(hubB) || destCodes.has(hubB) || !leg3ByHubB[hubB]) return;
                 const l2Dep = timeToMinutes(l2.depart), l2Arr = timeToMinutes(l2.arrive);
                 if (l2Dep === null || l2Arr === null) return;
                 const layover1 = calcLayover(l1Arr, l2Dep), cont1 = isContinuationLeg(l1, l2);
