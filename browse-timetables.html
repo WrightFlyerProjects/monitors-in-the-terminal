@@ -64,7 +64,7 @@
         /* ═══════════ Browse Timetables tool (inlined, manila) ═══════════ */
         .timetable-container{ max-width:1080px; margin:0 auto; }
         .search-form{ display:flex; flex-direction:column; gap:15px; background:#f4eae1; border:1px solid var(--rule-2); padding:20px; border-radius:3px; box-shadow:3px 4px 0 rgba(120,100,60,0.10); max-width:900px; margin:0 auto; }
-        .grid-row-3{ display:grid; grid-template-columns:repeat(3,1fr); gap:15px; }
+        .grid-row-3{ display:grid; grid-template-columns:repeat(3,1fr); gap:15px; align-items:start; }
         .input-group{ display:flex; flex-direction:column; gap:5px; }
         .search-form label{ font-size:11px; font-weight:700; color:var(--ink-2); text-transform:uppercase; letter-spacing:0.5px; }
         .search-form input, .search-form select{ background:#fffdf8; border:1px solid var(--rule-2); height:38px; width:100%; color:var(--ink); font-family:inherit; font-size:13px; padding:0 10px; border-radius:2px; }
@@ -177,15 +177,15 @@
 <div class="timetable-container">
     <form id="flightSearchForm" class="search-form">
         <div class="grid-row-3">
-            <div class="input-group"><label for="originInput">Origin</label><input type="text" id="originInput" list="originOptions" placeholder="Loading..." disabled><datalist id="originOptions"></datalist></div>
-            <div class="input-group"><label for="destinationInput">Destination</label><input type="text" id="destinationInput" list="destinationOptions" placeholder="Loading..." disabled><datalist id="destinationOptions"></datalist></div>
-            <div class="input-group"><label for="airlineInput">Airline</label><input type="text" id="airlineInput" list="airlineOptions" placeholder="Loading..." disabled><datalist id="airlineOptions"></datalist></div>
-        </div>
-        <div class="grid-row-3">
             <div class="input-group">
                 <label for="seasonInput">Year *</label>
                 <select id="seasonInput" disabled required><option value="" disabled selected hidden>Loading...</option></select>
             </div>
+            <div class="input-group"><label for="originInput">Origin</label><input type="text" id="originInput" placeholder="Loading..." disabled autocomplete="off"></div>
+            <div class="input-group"><label for="destinationInput">Destination</label><input type="text" id="destinationInput" placeholder="Loading..." disabled autocomplete="off"></div>
+        </div>
+        <div class="grid-row-3">
+            <div class="input-group"><label for="airlineInput">Airline</label><input type="text" id="airlineInput" list="airlineOptions" placeholder="Loading..." disabled><datalist id="airlineOptions"></datalist></div>
             <div class="input-group">
                 <label for="dayInput">Day of Week</label>
                 <select id="dayInput" disabled>
@@ -279,6 +279,7 @@
         </div>
     </footer>
 
+    <script src="airport-picker.js"></script>
     <script>
 
     const SUPABASE_URL = "https://monitors-proxy.sam-skardon.workers.dev";
@@ -295,64 +296,36 @@
     const originInput = document.getElementById('originInput');
     const destinationInput = document.getElementById('destinationInput');
     const airlineInput = document.getElementById('airlineInput');
+    let lastSearchWasRoute=false;
     let allFetchedFlights=[], currentResultsPool=[], currentSortColumn="", isSortAscending=true, searchWasTruncated=false, activeAbortController=null, currentPage=0;
     function formatTime(t){if(!t)return'';const[h,m]=t.split(':');let hr=parseInt(h);const ap=hr>=12?'PM':'AM';if(hr===0)hr=12;else if(hr>12)hr-=12;return`${hr}:${m} ${ap}`;}
     function timeToMinutes(t){if(!t)return null;const p=t.split(':');if(p.length<2)return null;const h=parseInt(p[0]),m=parseInt(p[1]);return isNaN(h)||isNaN(m)?null:h*60+m;}
     function htmlTimeToMinutes(t){if(!t)return null;const p=t.split(':');return p.length<2?null:parseInt(p[0])*60+parseInt(p[1]);}
     function esc(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
     function populateAirlineDatalist(names){const dl=document.getElementById('airlineOptions');dl.innerHTML='';names.sort().forEach(n=>{const o=document.createElement('option');o.value=n;dl.appendChild(o);});}
-    // Metro support: lookup map and airport-code expansion, populated at init
-    let locationLookup = {};  // display_name -> { type: 'airport'|'metro', code }
-    let metroAirports  = {};  // metro_code   -> [airport_code, ...]
-
-    function resolveLocationFilter(val, field) {
-        if (!val) return null;
-        const match = locationLookup[val];
-        if (match && match.type === 'metro') {
-            const codes = metroAirports[match.code];
-            if (!codes || codes.length === 0) return null;
-            return `${field}_code=in.(${codes.join(',')})`;
-        }
-        return `${field}_name=ilike.${encodeURIComponent('%' + val + '%')}`;
-    }
+    // Airport / metro search fields (shared module: airport-picker.js)
+    const originPicker = AirportPicker.attach(originInput,      { allowMetros: true, role: 'origin' });
+    const destPicker   = AirportPicker.attach(destinationInput, { allowMetros: true, role: 'destination' });
+    seasonInput.addEventListener('change', () => {
+        const o = seasonInput.options[seasonInput.selectedIndex];
+        const lbl = o ? o.textContent : seasonInput.value;
+        originPicker.setSeason(seasonInput.value, lbl);
+        destPicker.setSeason(seasonInput.value, lbl);
+    });
 
     async function initializeDropdowns(){
         try{
-            const[sR,aR,alR,mR]=await Promise.all([
+            const[sR,alR]=await Promise.all([
                 fetch(`${SUPABASE_URL}/seasons?select=season_code,season_label&order=season_order.asc`,{headers:HEADERS}),
-                fetch(`${SUPABASE_URL}/airports?select=airport_code,display_name,metro_code&order=display_name.asc`,{headers:HEADERS}),
                 fetch(`${SUPABASE_URL}/airlines?select=airline_name&order=airline_name.asc`,{headers:HEADERS}),
-                fetch(`${SUPABASE_URL}/metros?select=metro_code,display_name&order=display_name.asc`,{headers:HEADERS})
+                AirportPicker.load(SUPABASE_URL)
             ]);
-            const seasons=await sR.json(),airports=await aR.json(),airlines=await alR.json(),metros=await mR.json();
-
-            // Build lookup and metro->airport map
-            locationLookup = {};
-            metroAirports  = {};
-            airports.forEach(a => {
-                locationLookup[a.display_name] = { type: 'airport', code: a.airport_code };
-                if (a.metro_code) {
-                    if (!metroAirports[a.metro_code]) metroAirports[a.metro_code] = [];
-                    metroAirports[a.metro_code].push(a.airport_code);
-                }
-            });
-            metros.forEach(m => {
-                locationLookup[m.display_name] = { type: 'metro', code: m.metro_code };
-            });
-
-            // Merge and sort airports + metros into one datalist
-            const allOptions = [
-                ...airports.map(a => a.display_name),
-                ...metros.map(m => m.display_name)
-            ].sort((a,b) => a.localeCompare(b));
+            if(!sR.ok||!alR.ok) throw new Error('API error');
+            const seasons=await sR.json(),airlines=await alR.json();
 
             seasonInput.innerHTML='<option value="" disabled selected hidden>Select a Year</option>';
             seasons.forEach(s=>{const o=document.createElement('option');o.value=s.season_code;o.textContent=s.season_label;seasonInput.appendChild(o);});
             seasonInput.disabled=false;
-            ['originOptions','destinationOptions'].forEach(id=>{
-                const dl=document.getElementById(id);dl.innerHTML='';
-                allOptions.forEach(name=>{const o=document.createElement('option');o.value=name;dl.appendChild(o);});
-            });
             populateAirlineDatalist(airlines.map(a=>a.airline_name));
             originInput.placeholder=destinationInput.placeholder='City, metro area, or airport code...';
             airlineInput.placeholder='Type to search...';
@@ -364,7 +337,15 @@
     function renderTable(flights){
         let warn='';
         if(searchWasTruncated)warn='<div class="cap-warning">&#9888; Display limit reached (2,000 flights). Narrow your search by specifying an Origin, Destination, or Airline.</div>';
-        if(!flights.length){resultsContainer.innerHTML=warn+'<p class="status-msg">No non-stop flights found matching your search criteria. This route may have been served by connecting itineraries — try the <a href="index.html" style="color:#bf360c;">Itinerary Finder</a> to search for 1-stop and 2-stop routings between these cities.</p>';return;}
+        if(!flights.length){
+            const narrowed=allFetchedFlights.length>0;   // results existed but the time sliders hid them all
+            resultsContainer.innerHTML=warn+(narrowed
+                ?'<p class="status-msg">No flights fall within the selected departure / arrival windows. Try widening the time filters.</p>'
+                :lastSearchWasRoute
+                ?'<p class="status-msg">No non-stop flights found matching your search criteria. This route may have been served by connecting itineraries — try the <a href="index.html" style="color:#bf360c;">Itinerary Finder</a> to search for 1-stop and 2-stop routings between these cities.</p>'
+                :'<p class="status-msg">No flights found matching your search criteria.</p>');
+            return;
+        }
         const totalPages=Math.ceil(flights.length/PAGE_SIZE);
         if(currentPage>=totalPages)currentPage=totalPages-1;
         const pageFlights=flights.slice(currentPage*PAGE_SIZE,(currentPage+1)*PAGE_SIZE);
@@ -429,11 +410,18 @@
     form.addEventListener('submit',async function(e){
         e.preventDefault();
         const selectedSeason=seasonInput.value;if(!selectedSeason){alert('Please select a Year first.');return;}
-        const ov=originInput.value.trim(),dv=destinationInput.value.trim(),av=airlineInput.value.trim();
-        if(!ov&&!dv&&!av){
+        const av=airlineInput.value.trim();
+        const hasO=originPicker.hasText(), hasD=destPicker.hasText();
+        if(!hasO&&!hasD&&!av){
             resultsContainer.innerHTML='<p class="status-msg">Please enter at least one additional filter — Origin, Destination, or Airline — to search.</p>';
             return;
         }
+        // Origin / destination are optional, but anything typed must resolve to an airport served that year
+        if(hasO&&!originPicker.resolve()){originPicker.focus();return;}
+        if(hasD&&!destPicker.resolve()){destPicker.focus();return;}
+        if(hasO&&hasD){const dset=new Set(destPicker.codes());if(originPicker.codes().some(c=>dset.has(c))){alert('Origin and destination cannot be the same airport or metro area.');return;}}
+        const ov=hasO?originPicker.displayName():'', dv=hasD?destPicker.displayName():'';
+        lastSearchWasRoute=hasO&&hasD;
         if(activeAbortController)activeAbortController.abort();
         activeAbortController=new AbortController();const signal=activeAbortController.signal;
         allFetchedFlights=[];currentResultsPool=[];currentSortColumn='';isSortAscending=true;searchWasTruncated=false;currentPage=0;
@@ -442,8 +430,8 @@
         try{
             const filters=[`season=eq.${encodeURIComponent(selectedSeason)}`];
             const dy=dayInput.value;
-            const originFilter = resolveLocationFilter(ov, 'origin');
-            const destFilter   = resolveLocationFilter(dv, 'dest');
+            const originFilter = hasO ? originPicker.filterParam('origin') : null;
+            const destFilter   = hasD ? destPicker.filterParam('dest') : null;
             if(originFilter) filters.push(originFilter);
             if(destFilter)   filters.push(destFilter);
             if(av)filters.push(`airline_name=ilike.${encodeURIComponent('%'+av+'%')}`);
@@ -457,7 +445,7 @@
                 else if(allFetchedFlights.length>=max){keep=false;searchWasTruncated=true;}
                 else{offset+=limit;resultsContainer.innerHTML=`<p class="status-msg">Retrieved ${allFetchedFlights.length} rows, continuing...</p>`;}
             }
-            applyPostSearchFilters();
+            if(allFetchedFlights.length) applyPostSearchFilters(); else renderTable([]);
             filterSection.classList.toggle('hidden', allFetchedFlights.length===0);
             logSearch({tool:'flight-search',season:selectedSeason,origin:ov||null,destination:dv||null,airline:av||null,day_of_week:dy||null,result_count:allFetchedFlights.length});
         }catch(err){if(err.name==='AbortError')return;console.error(err);resultsContainer.innerHTML='<p class="error">Error retrieving data. Please try again.</p>';}
@@ -468,8 +456,9 @@
     }
     clearBtn.addEventListener('click',function(){
         if(activeAbortController)activeAbortController.abort();
-        form.reset();originInput.value=destinationInput.value=airlineInput.value='';
+        form.reset();originPicker.clear();destPicker.clear();airlineInput.value='';
         seasonInput.selectedIndex=dayInput.selectedIndex=0;
+        originPicker.setSeason('','');destPicker.setSeason('','');
         resetTimeSliders();
         allFetchedFlights=[];currentResultsPool=[];currentSortColumn='';isSortAscending=true;searchWasTruncated=false;currentPage=0;resultsContainer.innerHTML='';filterSection.classList.add('hidden');
     });

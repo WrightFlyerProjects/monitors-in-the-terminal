@@ -65,7 +65,7 @@
         .mode-btn{ font-family:inherit; font-size:12px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; padding:9px 18px; border:none; background:none; color:var(--ink-2); cursor:pointer; border-radius:2px; }
         .mode-btn.active{ background:var(--accent); color:#fff; }
         .search-form{ display:flex; flex-direction:column; gap:16px; background:#f4eae1; border:1px solid var(--rule-2); padding:20px; border-radius:3px; box-shadow:3px 4px 0 rgba(120,100,60,0.10); max-width:960px; }
-        .grid-row-4{ display:grid; grid-template-columns:repeat(4,1fr); gap:15px; }
+        .grid-row-4{ display:grid; grid-template-columns:repeat(4,1fr); gap:15px; align-items:start; }
         .input-group{ display:flex; flex-direction:column; gap:5px; }
         .search-form label{ font-size:11px; font-weight:700; color:var(--ink-2); text-transform:uppercase; letter-spacing:0.5px; }
         .search-form input, .search-form select{ background:#fffdf8; border:1px solid var(--rule-2); height:38px; width:100%; color:var(--ink); font-family:inherit; font-size:13px; padding:0 10px; border-radius:2px; }
@@ -181,8 +181,8 @@
 
             <form id="walkinForm" class="search-form">
                 <div class="grid-row-4">
-                    <div class="input-group"><label for="wiAirport">Airport *</label><input type="text" id="wiAirport" list="airportOptions" placeholder="Loading..." disabled required><datalist id="airportOptions"></datalist></div>
                     <div class="input-group"><label for="wiYear">Year *</label><select id="wiYear" disabled required><option value="" disabled selected hidden>Loading...</option></select></div>
+                    <div class="input-group"><label for="wiAirport">Airport *</label><input type="text" id="wiAirport" placeholder="Loading..." disabled autocomplete="off"></div>
                     <div class="input-group"><label for="wiDay">Day of Week</label><select id="wiDay" disabled><option value="ANY">Any Day</option><option value="Mo">Monday</option><option value="Tu">Tuesday</option><option value="We">Wednesday</option><option value="Th">Thursday</option><option value="Fr">Friday</option><option value="Sa">Saturday</option><option value="Su">Sunday</option></select></div>
                     <div class="input-group"><label for="wiTime">Time of Day</label><input type="time" id="wiTime" value="12:00"></div>
                 </div>
@@ -200,9 +200,9 @@
 
             <form id="connectForm" class="search-form" style="display:none;">
                 <div class="grid-row-4">
-                    <div class="input-group"><label for="cfOrigin">Origin *</label><input type="text" id="cfOrigin" list="airportOptions" placeholder="Loading..." disabled required></div>
-                    <div class="input-group"><label for="cfHub">Connecting Airport *</label><input type="text" id="cfHub" list="airportOptions" placeholder="Loading..." disabled required></div>
                     <div class="input-group"><label for="cfYear">Year *</label><select id="cfYear" disabled required><option value="" disabled selected hidden>Loading...</option></select></div>
+                    <div class="input-group"><label for="cfOrigin">Origin *</label><input type="text" id="cfOrigin" placeholder="Loading..." disabled autocomplete="off"></div>
+                    <div class="input-group"><label for="cfHub">Connecting Airport *</label><input type="text" id="cfHub" placeholder="Loading..." disabled autocomplete="off"></div>
                     <div class="input-group"><label for="cfDay">Day Filter</label><select id="cfDay" disabled><option value="ANY">Any Day</option><option value="Mo">Monday</option><option value="Tu">Tuesday</option><option value="We">Wednesday</option><option value="Th">Thursday</option><option value="Fr">Friday</option><option value="Sa">Saturday</option><option value="Su">Sunday</option></select></div>
                 </div>
                 <div class="form-actions">
@@ -254,6 +254,7 @@
         </div>
     </footer>
 
+    <script src="airport-picker.js"></script>
     <script>
 
     const SUPABASE_URL = "https://monitors-proxy.sam-skardon.workers.dev";
@@ -284,24 +285,47 @@
     function calcLayover(a,d){ if(a===null||d===null) return null; let l=d-a; if(l<0) l+=1440; return l; }
     function fwdDelta(t,from){ if(t===null) return null; return (t-from+1440)%1440; }
     function dayLabel(d){ return DAY_LABELS[d]||d; }
+    // Page through results so busy hubs aren't silently cut off at the server's row cap
+    async function fetchAll(url, signal){
+        const out=[]; let offset=0;
+        for(let guard=0; guard<50; guard++){
+            const res=await fetch(`${url}&limit=1000&offset=${offset}`,{headers:HEADERS,signal});
+            if(!res.ok) throw new Error(`API error ${res.status}`);
+            const batch=await res.json();
+            if(!batch.length) break;
+            out.push(...batch); offset+=batch.length;
+        }
+        return out;
+    }
+
+    // Airport search fields (shared module: airport-picker.js).
+    // A board or a connecting point is a single airport; an origin can be a metro area.
+    const wiPicker       = AirportPicker.attach(wiAirport, { allowMetros:false, role:'airport' });
+    const cfOriginPicker = AirportPicker.attach(cfOrigin,  { allowMetros:true,  role:'origin' });
+    const cfHubPicker    = AirportPicker.attach(cfHub,     { allowMetros:false, role:'connecting airport' });
+    function selLabel(sel){ const o=sel.options[sel.selectedIndex]; return o?o.textContent:sel.value; }
+    wiYear.addEventListener('change',()=>wiPicker.setSeason(wiYear.value, selLabel(wiYear)));
+    cfYear.addEventListener('change',()=>{ cfOriginPicker.setSeason(cfYear.value, selLabel(cfYear)); cfHubPicker.setSeason(cfYear.value, selLabel(cfYear)); });
+
     function logSearch(data){ fetch(`${SUPABASE_URL}/search_logs`,{method:'POST',headers:{...HEADERS,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify(data)}).catch(()=>{}); }
 
     async function initialize(){
         try{
-            const [sRes,aRes] = await Promise.all([
+            const [sRes] = await Promise.all([
                 fetch(`${SUPABASE_URL}/seasons?select=season_code,season_label&order=season_order.asc`,{headers:HEADERS}),
-                fetch(`${SUPABASE_URL}/airports?select=display_name&order=display_name.asc`,{headers:HEADERS})
+                AirportPicker.load(SUPABASE_URL)
             ]);
-            if(!sRes.ok||!aRes.ok) throw new Error();
-            const seasons=await sRes.json(), airports=await aRes.json();
+            if(!sRes.ok) throw new Error();
+            const seasons=await sRes.json();
             [wiYear,cfYear].forEach(sel=>{
                 sel.innerHTML='<option value="" disabled selected hidden>Select a year</option>';
                 seasons.forEach(s=>{ const o=document.createElement('option'); o.value=s.season_code; o.textContent=s.season_label; sel.appendChild(o); });
                 sel.disabled=false;
             });
-            const dl=document.getElementById('airportOptions');
-            airports.forEach(a=>{ const o=document.createElement('option'); o.value=a.display_name; dl.appendChild(o); });
-            [wiAirport,cfOrigin,cfHub].forEach(i=>{ i.disabled=false; i.placeholder='City name or airport code...'; });
+            wiAirport.placeholder='City name or airport code...';
+            cfHub.placeholder='City name or airport code...';
+            cfOrigin.placeholder='City, metro area, or airport code...';
+            [wiAirport,cfOrigin,cfHub].forEach(i=>{ i.disabled=false; });
             wiDay.disabled=false; cfDay.disabled=false;
             wiSearchBtn.disabled=false; wiSearchBtn.textContent='View the Board';
             cfSearchBtn.disabled=false; cfSearchBtn.textContent='Find Inbound Flights';
@@ -324,13 +348,15 @@
         if(b.dataset.board===boardDir) return;
         boardDir=b.dataset.board;
         bswitchBtns.forEach(x=>x.classList.toggle('active', x.dataset.board===boardDir));
-        if(mode==='walkin' && wiAirport.value.trim() && wiYear.value) walkinForm.requestSubmit();
+        if(mode==='walkin' && wiPicker.selection && wiYear.value) walkinForm.requestSubmit();
     }));
 
     walkinForm.addEventListener('submit', async (e)=>{
         e.preventDefault();
-        const airport=wiAirport.value.trim(), year=wiYear.value, day=wiDay.value, timeStr=wiTime.value;
-        if(!airport||!year){ alert('Please choose an airport and year.'); return; }
+        const year=wiYear.value, day=wiDay.value, timeStr=wiTime.value;
+        if(!year){ alert('Please choose a year.'); return; }
+        if(!wiPicker.resolve()){ wiPicker.focus(); return; }
+        const airport=wiPicker.displayName();
         const viewMins=timeToMinutes(timeStr);
         if(viewMins===null){ alert('Please choose a time of day.'); return; }
         if(abort) abort.abort(); abort=new AbortController(); const signal=abort.signal;
@@ -340,10 +366,8 @@
             const base=`${SUPABASE_URL}/flights`;
             const seasonFilter=`season=eq.${encodeURIComponent(year)}`;
             const dayFilter = day!=='ANY'?`&days=ilike.${encodeURIComponent('%'+day+'%')}`:'';
-            const locField = boardDir==='dep'?'origin_name':'dest_name';
-            const res=await fetch(`${base}?${seasonFilter}&${locField}=ilike.${encodeURIComponent('%'+airport+'%')}${dayFilter}&limit=2000`,{headers:HEADERS,signal});
-            if(!res.ok) throw new Error();
-            const data=await res.json();
+            const locFilter = wiPicker.filterParam(boardDir==='dep'?'origin':'dest');
+            const data=await fetchAll(`${base}?${seasonFilter}&${locFilter}${dayFilter}`, signal);
             const timeField = boardDir==='dep'?'depart':'arrive';
             const placeField = boardDir==='dep'?'dest_name':'origin_name';
             const placeCode  = boardDir==='dep'?'dest_code':'origin_code';
@@ -366,9 +390,12 @@
 
     connectForm.addEventListener('submit', async (e)=>{
         e.preventDefault();
-        const origin=cfOrigin.value.trim(), hub=cfHub.value.trim(), year=cfYear.value, dayVal=cfDay.value;
-        if(!origin||!hub||!year){ alert('Please fill in Origin, Connecting Airport, and Year.'); return; }
-        if(origin.toLowerCase()===hub.toLowerCase()){ alert('Origin and connecting airport cannot be the same.'); return; }
+        const year=cfYear.value, dayVal=cfDay.value;
+        if(!year){ alert('Please choose a year.'); return; }
+        if(!cfOriginPicker.resolve()){ cfOriginPicker.focus(); return; }
+        if(!cfHubPicker.resolve()){ cfHubPicker.focus(); return; }
+        if(cfOriginPicker.codes().includes(cfHubPicker.codes()[0])){ alert('Origin and connecting airport cannot be the same.'); return; }
+        const origin=cfOriginPicker.displayName(), hub=cfHubPicker.displayName();
         if(abort) abort.abort(); abort=new AbortController(); const signal=abort.signal;
         rawOutboundPool=[]; inboundMatches=[]; connAll=[]; boardResults.innerHTML='';
         cfSearchBtn.disabled=true; cfSearchBtn.textContent='Searching...';
@@ -377,12 +404,11 @@
             const base=`${SUPABASE_URL}/flights`;
             const seasonFilter=`season=eq.${encodeURIComponent(year)}`;
             const dayFilter = dayVal!=='ANY'?`&days=ilike.${encodeURIComponent('%'+dayVal+'%')}`:'';
-            const [inRes,outRes]=await Promise.all([
-                fetch(`${base}?${seasonFilter}&origin_name=ilike.${encodeURIComponent('%'+origin+'%')}&dest_name=ilike.${encodeURIComponent('%'+hub+'%')}${dayFilter}&limit=1000`,{headers:HEADERS,signal}),
-                fetch(`${base}?${seasonFilter}&origin_name=ilike.${encodeURIComponent('%'+hub+'%')}${dayFilter}&limit=1000`,{headers:HEADERS,signal})
+            const [inData,outData]=await Promise.all([
+                fetchAll(`${base}?${seasonFilter}&${cfOriginPicker.filterParam('origin')}&${cfHubPicker.filterParam('dest')}${dayFilter}`, signal),
+                fetchAll(`${base}?${seasonFilter}&${cfHubPicker.filterParam('origin')}${dayFilter}`, signal)
             ]);
-            if(!inRes.ok||!outRes.ok) throw new Error('API error');
-            const inData=await inRes.json(); rawOutboundPool=await outRes.json();
+            rawOutboundPool=outData;
             inboundMatches=inData.sort((a,b)=>(timeToMinutes(a.depart)??9999)-(timeToMinutes(b.depart)??9999));
             connHub=hub;
             if(!inboundMatches.length){ inboundSelector.innerHTML='<p class="status-msg">No inbound flights found for that route and year.</p>'; return; }
@@ -459,8 +485,8 @@
         boardResults.innerHTML=controls+`<div class="board"><div class="board-screen">${banner}${table}</div></div>`+(activeCfg.note?`<p class="board-note">${esc(activeCfg.note)}</p>`:'');
     }
 
-    wiClear.addEventListener('click',()=>{ if(abort) abort.abort(); walkinForm.reset(); wiAirport.value=''; wiTime.value='12:00'; boardDir='dep'; bswitchBtns.forEach(x=>x.classList.toggle('active',x.dataset.board==='dep')); activeCfg=null; activeRows=[]; boardAirline='__all__'; boardResults.innerHTML=''; });
-    cfClear.addEventListener('click',()=>{ if(abort) abort.abort(); connectForm.reset(); cfOrigin.value=''; cfHub.value=''; rawOutboundPool=[]; inboundMatches=[]; connAll=[]; connMode='affiliated'; boardAirline='__all__'; activeCfg=null; activeRows=[]; inboundSelector.innerHTML=''; boardResults.innerHTML=''; });
+    wiClear.addEventListener('click',()=>{ if(abort) abort.abort(); walkinForm.reset(); wiPicker.clear(); wiPicker.setSeason('',''); wiTime.value='12:00'; boardDir='dep'; bswitchBtns.forEach(x=>x.classList.toggle('active',x.dataset.board==='dep')); activeCfg=null; activeRows=[]; boardAirline='__all__'; boardResults.innerHTML=''; });
+    cfClear.addEventListener('click',()=>{ if(abort) abort.abort(); connectForm.reset(); cfOriginPicker.clear(); cfHubPicker.clear(); cfOriginPicker.setSeason('',''); cfHubPicker.setSeason('',''); rawOutboundPool=[]; inboundMatches=[]; connAll=[]; connMode='affiliated'; boardAirline='__all__'; activeCfg=null; activeRows=[]; inboundSelector.innerHTML=''; boardResults.innerHTML=''; });
 
     </script>
 
