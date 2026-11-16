@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monitors in the Terminal — Historic Airline Timetable Archive</title>
-    <meta name="description" content="Search historic airline schedules from 1988 to 2005 and reconstruct how you would have flown between any two cities — every flight, every connection, exactly as it appeared on the departure board.">
+    <meta name="description" content="Search historic airline schedules from 1983 to 2005 and reconstruct how you would have flown between any two cities — every flight, every connection, exactly as it appeared on the departure board.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -181,6 +181,20 @@
         .hub-badge { background-color: #4a3e3d; color: #fff; padding: 2px 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
         .hub-badge.non-stop-badge { background-color: #2e4d14; }
         .hub-badge.two-stop-badge { background-color: #6b3a1f; }
+        .badge-group { display: inline-flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+        .hub-badge.interline-badge { background-color: #9a6a12; }
+        .card-header.interline { background-color: #eadbbd; border-bottom-color: #c9a96a; }
+
+        /* Interline offer (no results / 2-stop only) */
+        .interline-offer { text-align: center; padding: 6px 0 4px; }
+        .interline-offer .status-msg { margin-top: 20px; }
+        .interline-offer-sub { font-size: 11.5px; color: #8a7a66; margin: 6px auto 14px; max-width: 520px; line-height: 1.6; }
+        .interline-btn { background: #fcf8f2; color: #bf360c; border: 1px solid #bf360c; padding: 10px 16px; font-size: 12px; letter-spacing: 0.5px; }
+        .interline-btn:hover { background: #fff; }
+        .interline-inline { font-size: 11px; color: #5a3e1b; background: #f7ebd9; border: 1px solid #c5b6a1; padding: 8px 12px; margin: -6px 0 16px; line-height: 1.6; }
+        .interline-link { background: none; border: none; box-shadow: none; padding: 0; color: #bf360c; font-size: 11px; text-decoration: underline; text-underline-offset: 2px; text-transform: none; }
+        .interline-note { font-size: 11px; color: #5a3e1b; background: #f3e6cb; border: 1px solid #c9a96a; padding: 8px 12px; margin: -6px 0 16px; line-height: 1.6; }
+        .interline-tag { display: inline-block; background: #9a6a12; color: #fff; font-size: 9.5px; font-weight: 700; padding: 1px 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 4px; }
 
         .layover-bar { background-color: #f7ebd9; color: #a04000; padding: 8px 15px; font-size: 11px; font-weight: 700; text-align: center; border-top: 2px dotted #c5b6a1; border-bottom: 2px dotted #c5b6a1; }
         
@@ -314,7 +328,7 @@
     </header>
     <header class="page-header">
         <div class="wrap">
-            <div class="page-eyebrow">Searchable Airline Timetable Archive &middot; 1988&ndash;2005</div>
+            <div class="page-eyebrow">Searchable Airline Timetable Archive &middot; 1983&ndash;2005</div>
             <h1 class="page-title">Monitors in the <span>Terminal</span></h1>
             <p class="page-sub">Search and reconstruct historic airline schedules &mdash; every flight, every connection, exactly as they appeared on your ticket stock, a timetable pamphlet, or the departure board.</p>
         </div>
@@ -401,7 +415,7 @@
 
     <section class="tool-notes">
         <div class="wrap">
-            <p class="notes-body">Two-stop routings appear only when non-stop or one-stop options do not exist. Connections span each airline, its subsidiaries, and its code-share and alliance partners.</p>
+            <p class="notes-body">Two-stop routings appear only when non-stop or one-stop options do not exist. Connections span each airline, its subsidiaries, and its code-share and alliance partners; if a route turns up nothing (common before the alliance era), you can also check interline connections between unaffiliated carriers.</p>
             <p class="notes-body"><b>Deepen-on-demand:</b> the initial search lists the shortest and most direct itineraries first; filtering may offer deeper results if available &mdash; look for the dashed &ldquo;+&rdquo; chips.</p>
         </div>
     </section>
@@ -416,11 +430,7 @@
             <div>
                 <div class="manifest">
                     <div class="manifest-head">Searchable points in time</div>
-                    <div class="season-row"><span class="season-name">Summer 1988</span><div class="season-bar-wrap"><div class="season-bar" style="width:85%"></div></div><span class="season-count">31,000+ flights</span></div>
-                    <div class="season-row"><span class="season-name">Fall 1993</span><div class="season-bar-wrap"><div class="season-bar" style="width:90%"></div></div><span class="season-count">33,000+ flights</span></div>
-                    <div class="season-row"><span class="season-name">Spring 1997</span><div class="season-bar-wrap"><div class="season-bar" style="width:89%"></div></div><span class="season-count">33,000+ flights</span></div>
-                    <div class="season-row"><span class="season-name">Summer 2001</span><div class="season-bar-wrap"><div class="season-bar" style="width:97%"></div></div><span class="season-count">36,000+ flights</span></div>
-                    <div class="season-row"><span class="season-name">Spring 2005</span><div class="season-bar-wrap"><div class="season-bar" style="width:100%"></div></div><span class="season-count">37,000+ flights</span></div>
+                    <div id="seasonManifest"><div class="season-row"><span class="season-name">Loading&hellip;</span></div></div>
                 </div>
             </div>
         </div>
@@ -455,7 +465,7 @@
         <div class="wrap">
             <div class="cov-head-row">
                 <h2 class="sec-title" style="margin-bottom:0;">Database coverage</h2>
-                <span class="cov-sub">All years &middot; 1988&ndash;2005</span>
+                <span class="cov-sub">All years &middot; 1983&ndash;2005</span>
             </div>
             <div class="cov-lines">
                 <div class="cov-line"><span class="cov-dot complete"></span><span><span class="cov-cat">US Domestic</span> &mdash; Complete</span></div>
@@ -479,7 +489,7 @@
         </div>
     </footer>
 
-    <script src="airport-picker.js"></script>
+    <script src="pickers.js"></script>
     <script>
 
     const SUPABASE_URL = "https://monitors-proxy.sam-skardon.workers.dev";
@@ -489,6 +499,11 @@
     const MIN_LAYOVER = 35;
     const MAX_LAYOVER = 240;
     const MAX_RESULTS = 50;
+    // Interline (unaffiliated carriers): a longer minimum connection when changing to an
+    // airline outside the arriving carrier's family. Adjust to taste.
+    const INTERLINE_MIN_LAYOVER = 60;
+    const INTERLINE_LABEL = 'Interline';
+    const INTERLINE_BUILD_CAP = 5000;   // safety valve on 2-stop interline combinations
 
     const form             = document.getElementById('connectionForm');
     const searchBtn        = document.getElementById('searchBtn');
@@ -710,7 +725,7 @@
         return results;
     }
 
-    // Airport / metro search fields (shared module: airport-picker.js)
+    // Airport / metro search fields (shared module: pickers.js)
     const originPicker = AirportPicker.attach(originInput,      { allowMetros: true, role: 'origin' });
     const destPicker   = AirportPicker.attach(destinationInput, { allowMetros: true, role: 'destination' });
     const swapBtn      = document.getElementById('swapBtn');
@@ -761,6 +776,7 @@
             });
 
             [originInput, destinationInput, yearInput, swapBtn].forEach(el => el.disabled = false);
+            renderSeasonManifest(seasons);
             originInput.placeholder      = 'City, metro area, or airport code...';
             destinationInput.placeholder = 'City, metro area, or airport code...';
             searchBtn.textContent        = 'Search';
@@ -770,6 +786,26 @@
             console.error(err);
             resultsContainer.innerHTML = '<p class="error">Error loading form data. Please refresh.</p>';
         }
+    }
+
+    // "Searchable points in time" chart — built from the seasons table and the
+    // per-season flight counts in airport_directory, so new years appear automatically.
+    function renderSeasonManifest(seasons) {
+        const el = document.getElementById('seasonManifest');
+        if (!el) return;
+        const counts = AirportPicker.seasonFlightCounts();
+        if (!counts) {   // directory not available: list the seasons without counts
+            el.innerHTML = seasons.map(s => `<div class="season-row"><span class="season-name">${esc(s.season_label)}</span></div>`).join('');
+            return;
+        }
+        const max = Math.max(1, ...seasons.map(s => counts[s.season_code] || 0));
+        el.innerHTML = seasons.map(s => {
+            const n = counts[s.season_code] || 0;
+            const label = n >= 1000 ? `${(Math.floor(n / 1000) * 1000).toLocaleString('en-US')}+ flights` : `${n.toLocaleString('en-US')} flights`;
+            return `<div class="season-row"><span class="season-name">${esc(s.season_label)}</span>` +
+                `<div class="season-bar-wrap"><div class="season-bar" style="width:${Math.round(n / max * 100)}%"></div></div>` +
+                `<span class="season-count">${label}</span></div>`;
+        }).join('');
     }
 
     initializeDropdowns();
@@ -794,9 +830,12 @@
 
     // scope.carriers (optional Set) limits which leg carriers are considered —
     // used to scope a deepened build to a single airline family.
+    // scope.interline (optional) also allows connections between unaffiliated
+    // carriers, with INTERLINE_MIN_LAYOVER at the change of airline.
     function buildOneStops(originPool, destPool, scope) {
         scope = scope || {};
         const carriers = scope.carriers || null;
+        const interline = !!scope.interline;
         const destCodes = new Set(destPool.map(f => f.dest_code).filter(Boolean));
         const leg2ByOrigin = {};
         destPool.forEach(f => { if (!f.origin_code) return; (leg2ByOrigin[f.origin_code] = leg2ByOrigin[f.origin_code] || []).push(f); });
@@ -809,21 +848,22 @@
             const leg1ValidDays = operatingDays(l1.days);
             if (!leg1ValidDays.length) return;
             (leg2ByOrigin[l1.dest_code] || []).forEach(l2 => {
-                if (!areAffiliatedAirlines(l1.airline_name, l2.airline_name)) return;
+                const aff = areAffiliatedAirlines(l1.airline_name, l2.airline_name);
+                if (!aff && !interline) return;
                 if (carriers && !carriers.has(l2.airline_name)) return;
                 const l2Dep = timeToMinutes(l2.depart), l2Arr = timeToMinutes(l2.arrive);
                 if (l2Dep === null || l2Arr === null) return;
                 const layover = calcLayover(l1Arr, l2Dep), cont = isContinuationLeg(l1, l2);
                 if (layover === null || layover > MAX_LAYOVER) return;
-                if (!cont && layover < MIN_LAYOVER) return;
+                if (!cont && layover < (aff ? MIN_LAYOVER : INTERLINE_MIN_LAYOVER)) return;
                 const offsetIntoLeg2 = legCrossesMidnight(l1Dep, l1Arr) + layoverCrossesMidnight(l1Arr, l2Dep);
                 const valid = leg1ValidDays.filter(d => operatingDays(l2.days).includes(rotateDay(d, offsetIntoLeg2)));
                 if (!valid.length) return;
                 const totalOff = offsetIntoLeg2 + legCrossesMidnight(l2Dep, l2Arr);
-                const conn = { isNonStop: false, isTwoStop: false,
+                const conn = { isNonStop: false, isTwoStop: false, isInterline: !aff,
                     totalTravelMinutes: calcTotalTime(l1Dep, l2Arr, totalOff), layover1: layover, layover2: 0,
                     leg1: l1, leg2: l2, leg3: null, validDepartDays: valid };
-                conn.parent = parentAirline(conn);
+                conn.parent = conn.isInterline ? INTERLINE_LABEL : parentAirline(conn);
                 out.push(conn);
             });
         });
@@ -833,6 +873,7 @@
     function buildTwoStops(originPool, middleByHubA, destPool, scope) {
         scope = scope || {};
         const carriers = scope.carriers || null;
+        const interline = !!scope.interline;
         const originCodes = new Set(originPool.map(f => f.origin_code).filter(Boolean));
         const destCodes = new Set(destPool.map(f => f.dest_code).filter(Boolean));
         const leg3ByHubB = {};
@@ -848,7 +889,9 @@
             if (!hubA || !middleByHubA[hubA]) return;
             if (destCodes.has(hubA) || originCodes.has(hubA)) return;
             middleByHubA[hubA].forEach(l2 => {
-                if (!areAffiliatedAirlines(l1.airline_name, l2.airline_name)) return;
+                if (interline && out.length >= INTERLINE_BUILD_CAP) return;
+                const aff1 = areAffiliatedAirlines(l1.airline_name, l2.airline_name);
+                if (!aff1 && !interline) return;
                 if (carriers && !carriers.has(l2.airline_name)) return;
                 const hubB = l2.dest_code;
                 if (!hubB || hubB === hubA || originCodes.has(hubB) || destCodes.has(hubB) || !leg3ByHubB[hubB]) return;
@@ -856,26 +899,27 @@
                 if (l2Dep === null || l2Arr === null) return;
                 const layover1 = calcLayover(l1Arr, l2Dep), cont1 = isContinuationLeg(l1, l2);
                 if (layover1 === null || layover1 > MAX_LAYOVER) return;
-                if (!cont1 && layover1 < MIN_LAYOVER) return;
+                if (!cont1 && layover1 < (aff1 ? MIN_LAYOVER : INTERLINE_MIN_LAYOVER)) return;
                 const offsetIntoLeg2 = legCrossesMidnight(l1Dep, l1Arr) + layoverCrossesMidnight(l1Arr, l2Dep);
                 const valid2 = leg1ValidDays.filter(d => operatingDays(l2.days).includes(rotateDay(d, offsetIntoLeg2)));
                 if (!valid2.length) return;
                 leg3ByHubB[hubB].forEach(l3 => {
-                    if (!areAffiliatedAirlines(l2.airline_name, l3.airline_name)) return;
+                    const aff2 = areAffiliatedAirlines(l2.airline_name, l3.airline_name);
+                    if (!aff2 && !interline) return;
                     if (carriers && !carriers.has(l3.airline_name)) return;
                     const l3Dep = timeToMinutes(l3.depart), l3Arr = timeToMinutes(l3.arrive);
                     if (l3Dep === null || l3Arr === null) return;
                     const layover2 = calcLayover(l2Arr, l3Dep), cont2 = isContinuationLeg(l2, l3);
                     if (layover2 === null || layover2 > MAX_LAYOVER) return;
-                    if (!cont2 && layover2 < MIN_LAYOVER) return;
+                    if (!cont2 && layover2 < (aff2 ? MIN_LAYOVER : INTERLINE_MIN_LAYOVER)) return;
                     const offsetIntoLeg3 = legCrossesMidnight(l2Dep, l2Arr) + layoverCrossesMidnight(l2Arr, l3Dep);
                     const valid = valid2.filter(d => operatingDays(l3.days).includes(rotateDay(d, offsetIntoLeg2 + offsetIntoLeg3)));
                     if (!valid.length) return;
                     const totalOff = offsetIntoLeg2 + offsetIntoLeg3 + legCrossesMidnight(l3Dep, l3Arr);
-                    const conn = { isNonStop: false, isTwoStop: true,
+                    const conn = { isNonStop: false, isTwoStop: true, isInterline: !aff1 || !aff2,
                         totalTravelMinutes: calcTotalTime(l1Dep, l3Arr, totalOff), layover1, layover2,
                         leg1: l1, leg2: l2, leg3: l3, validDepartDays: valid };
-                    conn.parent = parentAirline(conn);
+                    conn.parent = conn.isInterline ? INTERLINE_LABEL : parentAirline(conn);
                     out.push(conn);
                 });
             });
@@ -891,7 +935,7 @@
         originPool.forEach(f => labelsForCarrier(f.airline_name).forEach(l => originLabels.add(l)));
         destPool.forEach(f => labelsForCarrier(f.airline_name).forEach(l => destLabels.add(l)));
         const deeper = new Set();
-        originLabels.forEach(l => { if (destLabels.has(l) && !live.has(l)) deeper.add(l); });
+        if (!interlineMode) originLabels.forEach(l => { if (destLabels.has(l) && !live.has(l)) deeper.add(l); });
         return { live: [...live].sort((a, b) => a.localeCompare(b)), deeper: [...deeper].sort((a, b) => a.localeCompare(b)) };
     }
 
@@ -905,6 +949,7 @@
     let activeAirline = null;   // parent label, or null = Any
     let activeDay = null;       // day code, or null = Any
     let deepenInProgress = false;
+    let interlineMode = false;  // true once the user asks to include unaffiliated-carrier connections
     let currentSeason = null;
     let currentSignal = null;
 
@@ -994,9 +1039,18 @@
     function renderFiltered(filtered) {
         if (filtered.length === 0) {
             const hasFilter = activeAirline || activeDay || timeFiltersActive();
-            resultsContainer.innerHTML = `<p class="status-msg">${hasFilter
-                ? 'No itineraries match these filters. Try widening them.'
-                : 'No itineraries found for this route and year.'}</p>`;
+            if (hasFilter) {
+                resultsContainer.innerHTML = '<p class="status-msg">No itineraries match these filters. Try widening them.</p>';
+            } else if (!interlineMode) {
+                resultsContainer.innerHTML = `
+                    <div class="interline-offer">
+                        <p class="status-msg">No itineraries found on a single airline or its partners for this route and year.</p>
+                        <p class="interline-offer-sub">In this era, many trips like this were booked by a travel agent across two or more unaffiliated airlines.</p>
+                        <button type="button" class="interline-btn" data-interline>Check for connections among non-affiliated carriers</button>
+                    </div>`;
+            } else {
+                resultsContainer.innerHTML = '<p class="status-msg">No itineraries found for this route and year, even allowing connections between unaffiliated airlines.</p>';
+            }
             return;
         }
 
@@ -1016,9 +1070,15 @@
         }
 
         let html = `<div class="results-count">Results: ${displayed.length}${isTwoStopOnly ? noticeHtml : ''}</div>${!isTwoStopOnly && wasCapped ? noticeHtml : ''}`;
+        if (!interlineMode && isTwoStopOnly) {
+            html += `<div class="interline-inline">Only 2-stop routings on affiliated airlines. <button type="button" class="interline-link" data-interline>Check for connections among non-affiliated carriers &rarr;</button></div>`;
+        }
+        if (interlineMode && masterConnectionsPool.some(c => c.isInterline)) {
+            html += `<div class="interline-note"><span class="interline-tag">Interline</span> itineraries change between unaffiliated airlines and allow at least ${INTERLINE_MIN_LAYOVER} minutes to connect. Use the Interline airline filter to show only these.</div>`;
+        }
 
         displayed.forEach((conn, idx) => {
-            const headerClass = conn.isNonStop ? 'non-stop' : (conn.isTwoStop ? 'two-stop' : '');
+            const headerClass = (conn.isNonStop ? 'non-stop' : (conn.isTwoStop ? 'two-stop' : '')) + (conn.isInterline ? ' interline' : '');
             const badgeClass  = conn.isNonStop ? 'non-stop-badge' : (conn.isTwoStop ? 'two-stop-badge' : '');
             const badgeText   = conn.isNonStop ? 'NON-STOP'
                 : conn.isTwoStop ? `VIA ${esc(conn.leg1.dest_code)} &amp; ${esc(conn.leg2.dest_code)}`
@@ -1041,20 +1101,25 @@
                 </div>`;
 
             const finalLegForRoute = conn.leg3 || conn.leg2 || conn.leg1;
-            const routeSummary = `${esc(conn.leg1.origin_code)} &rarr; ${esc(finalLegForRoute.dest_code)} &nbsp;|&nbsp; ${esc(conn.parent)}`;
+            const carrierText = conn.isInterline
+                ? [...new Set([conn.leg1, conn.leg2, conn.leg3].filter(Boolean).map(l => l.airline_name))].join(' + ')
+                : conn.parent;
+            const routeSummary = `${esc(conn.leg1.origin_code)} &rarr; ${esc(finalLegForRoute.dest_code)} &nbsp;|&nbsp; ${esc(carrierText)}`;
+            const changeNote = (a, b) => (conn.isInterline && !areAffiliatedAirlines(a.airline_name, b.airline_name))
+                ? ` &middot; CHANGE TO ${esc(b.airline_name)}` : '';
 
             html += `
                 <div class="connection-card">
                     <div class="card-header ${headerClass}">
                         <span>Option #${idx + 1} &nbsp;|&nbsp; ${routeSummary}</span>
-                        <span class="hub-badge ${badgeClass}">${badgeText}</span>
+                        <span class="badge-group">${conn.isInterline ? '<span class="hub-badge interline-badge">INTERLINE</span>' : ''}<span class="hub-badge ${badgeClass}">${badgeText}</span></span>
                     </div>
                     ${legRow(conn.leg1, 'Flight 1')}`;
             if (!conn.isNonStop) {
-                html += `<div class="layover-bar">CONNECTION AT ${esc(conn.leg2.origin_name || conn.leg2.origin_code)}: ${formatMinutes(conn.layover1)} layover</div>`;
+                html += `<div class="layover-bar">CONNECTION AT ${esc(conn.leg2.origin_name || conn.leg2.origin_code)}: ${formatMinutes(conn.layover1)} layover${changeNote(conn.leg1, conn.leg2)}</div>`;
                 html += legRow(conn.leg2, 'Flight 2');
                 if (conn.isTwoStop) {
-                    html += `<div class="layover-bar">CONNECTION AT ${esc(conn.leg3.origin_name || conn.leg3.origin_code)}: ${formatMinutes(conn.layover2)} layover</div>`;
+                    html += `<div class="layover-bar">CONNECTION AT ${esc(conn.leg3.origin_name || conn.leg3.origin_code)}: ${formatMinutes(conn.layover2)} layover${changeNote(conn.leg2, conn.leg3)}</div>`;
                     html += legRow(conn.leg3, 'Flight 3');
                 }
             }
@@ -1138,6 +1203,36 @@
         renderResults();
     });
 
+    // ── Interline (non-affiliated carriers) ───────────────────────────────
+    // Re-uses the leg pools already fetched for this search: no new flight queries
+    // for 1-stops; 2-stops (only if still no 1-stop exists) reuse/fetch the hub pools.
+    async function runInterline() {
+        if (interlineMode) return;
+        interlineMode = true;
+        resultsContainer.innerHTML = '<p class="status-msg">Checking connections among non-affiliated carriers&hellip;</p>';
+        try {
+            mergeIntoPool(buildOneStops(legPools.leg1, legPools.leg2, { interline: true }));
+            const genuine = masterConnectionsPool.filter(r => !r.isTwoStop && !isContinuationLeg(r.leg1, r.leg2));
+            if (genuine.length === 0) {
+                await ensureMiddles();
+                mergeIntoPool(buildTwoStops(legPools.leg1, middleByHubA, legPools.leg2, { interline: true }));
+            }
+            allTwoStopsBuilt = true;   // the whole tier is built; no airline-scoped deepening in this mode
+            sortPool(sortSelect.value || 'totalTime');
+            rebuildAirlineChips();
+            updateFilterSummary();
+            renderResults();
+            logSearch({ tool: 'itinerary-finder-interline', season: currentSeason, origin: originPicker.displayName() || null,
+                destination: destPicker.displayName() || null, airline: null, day_of_week: null,
+                result_count: masterConnectionsPool.filter(c => c.isInterline).length });
+        } catch (err) {
+            if (err.name === 'AbortError') return;
+            console.error(err);
+            resultsContainer.innerHTML = '<p class="error">Error retrieving data. Please try again.</p>';
+        }
+    }
+    resultsContainer.addEventListener('click', e => { if (e.target.closest('[data-interline]')) runInterline(); });
+
     // ── Search ─────────────────────────────────────────────────────────────
     form.addEventListener('submit', async function (e) {
         e.preventDefault();
@@ -1168,7 +1263,7 @@
         legPools = { direct: [], leg1: [], leg2: [], originCodes: new Set() };
         middleByHubA = {}; middlesFetched = false; allTwoStopsBuilt = false;
         twoStopScopesBuilt = new Set(); carrierUniverse = new Set();
-        activeAirline = null; activeDay = null;
+        activeAirline = null; activeDay = null; interlineMode = false;
         depMinInput.value = '00:00'; depMaxInput.value = '23:59';
         arrMinInput.value = '00:00'; arrMaxInput.value = '23:59';
         sortSelect.value = 'totalTime';
@@ -1255,7 +1350,7 @@
         arrMinInput.value = '00:00'; arrMaxInput.value = '23:59';
         sortSelect.value = 'totalTime';
         masterConnectionsPool = [];
-        activeAirline = null; activeDay = null;
+        activeAirline = null; activeDay = null; interlineMode = false;
         filterBar.classList.add('hidden');
         filterBar.classList.remove('open');
         resultsContainer.innerHTML = '';

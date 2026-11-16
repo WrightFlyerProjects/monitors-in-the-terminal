@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>View the Monitors — Monitors in the Terminal</title>
-    <meta name="description" content="Read historic airport arrival and departure boards from 1988 to 2005, or follow an inbound flight to a hub and see every onward connection.">
+    <meta name="description" content="Read historic airport arrival and departure boards from 1983 to 2005, or follow an inbound flight to a hub and see every onward connection.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -231,7 +231,7 @@
 
     <section class="band">
         <div class="wrap">
-            <div class="cov-head-row"><h2 class="sec-title" style="margin-bottom:0;">Database coverage</h2><span class="cov-sub">All years &middot; 1988&ndash;2005</span></div>
+            <div class="cov-head-row"><h2 class="sec-title" style="margin-bottom:0;">Database coverage</h2><span class="cov-sub">All years &middot; 1983&ndash;2005</span></div>
             <div class="cov-lines">
                 <div class="cov-line"><span class="cov-dot complete"></span><span><span class="cov-cat">US Domestic</span> &mdash; Complete</span></div>
                 <div class="cov-line"><span class="cov-dot partial"></span><span><span class="cov-cat">International, to / from US</span> &mdash; Partial: most major US carriers &amp; partners</span></div>
@@ -254,7 +254,7 @@
         </div>
     </footer>
 
-    <script src="airport-picker.js"></script>
+    <script src="pickers.js"></script>
     <script>
 
     const SUPABASE_URL = "https://monitors-proxy.sam-skardon.workers.dev";
@@ -298,7 +298,7 @@
         return out;
     }
 
-    // Airport search fields (shared module: airport-picker.js).
+    // Airport search fields (shared module: pickers.js).
     // A board or a connecting point is a single airport; an origin can be a metro area.
     const wiPicker       = AirportPicker.attach(wiAirport, { allowMetros:false, role:'airport' });
     const cfOriginPicker = AirportPicker.attach(cfOrigin,  { allowMetros:true,  role:'origin' });

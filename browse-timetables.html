@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Browse Timetables — Monitors in the Terminal</title>
-    <meta name="description" content="Look up individual historic flights from 1988 to 2005 by origin, destination, airline, or day of week — the way you'd read a system timetable.">
+    <meta name="description" content="Look up individual historic flights from 1983 to 2005 by origin, destination, airline, or day of week — the way you'd read a system timetable.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -185,7 +185,7 @@
             <div class="input-group"><label for="destinationInput">Destination</label><input type="text" id="destinationInput" placeholder="Loading..." disabled autocomplete="off"></div>
         </div>
         <div class="grid-row-3">
-            <div class="input-group"><label for="airlineInput">Airline</label><input type="text" id="airlineInput" list="airlineOptions" placeholder="Loading..." disabled><datalist id="airlineOptions"></datalist></div>
+            <div class="input-group"><label for="airlineInput">Airline</label><input type="text" id="airlineInput" placeholder="Loading..." disabled autocomplete="off"></div>
             <div class="input-group">
                 <label for="dayInput">Day of Week</label>
                 <select id="dayInput" disabled>
@@ -255,7 +255,7 @@
         <div class="wrap">
             <div class="cov-head-row">
                 <h2 class="sec-title" style="margin-bottom:0;">Database coverage</h2>
-                <span class="cov-sub">All years &middot; 1988&ndash;2005</span>
+                <span class="cov-sub">All years &middot; 1983&ndash;2005</span>
             </div>
             <div class="cov-lines">
                 <div class="cov-line"><span class="cov-dot complete"></span><span><span class="cov-cat">US Domestic</span> &mdash; Complete</span></div>
@@ -279,7 +279,7 @@
         </div>
     </footer>
 
-    <script src="airport-picker.js"></script>
+    <script src="pickers.js"></script>
     <script>
 
     const SUPABASE_URL = "https://monitors-proxy.sam-skardon.workers.dev";
@@ -302,31 +302,29 @@
     function timeToMinutes(t){if(!t)return null;const p=t.split(':');if(p.length<2)return null;const h=parseInt(p[0]),m=parseInt(p[1]);return isNaN(h)||isNaN(m)?null:h*60+m;}
     function htmlTimeToMinutes(t){if(!t)return null;const p=t.split(':');return p.length<2?null:parseInt(p[0])*60+parseInt(p[1]);}
     function esc(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-    function populateAirlineDatalist(names){const dl=document.getElementById('airlineOptions');dl.innerHTML='';names.sort().forEach(n=>{const o=document.createElement('option');o.value=n;dl.appendChild(o);});}
-    // Airport / metro search fields (shared module: airport-picker.js)
+    // Airport / metro search fields (shared module: pickers.js)
     const originPicker = AirportPicker.attach(originInput,      { allowMetros: true, role: 'origin' });
     const destPicker   = AirportPicker.attach(destinationInput, { allowMetros: true, role: 'destination' });
+    const airlinePicker = AirlinePicker.attach(airlineInput, { role: 'airline' });
     seasonInput.addEventListener('change', () => {
         const o = seasonInput.options[seasonInput.selectedIndex];
         const lbl = o ? o.textContent : seasonInput.value;
-        originPicker.setSeason(seasonInput.value, lbl);
-        destPicker.setSeason(seasonInput.value, lbl);
+        [originPicker, destPicker, airlinePicker].forEach(p => p.setSeason(seasonInput.value, lbl));
     });
 
     async function initializeDropdowns(){
         try{
-            const[sR,alR]=await Promise.all([
+            const[sR]=await Promise.all([
                 fetch(`${SUPABASE_URL}/seasons?select=season_code,season_label&order=season_order.asc`,{headers:HEADERS}),
-                fetch(`${SUPABASE_URL}/airlines?select=airline_name&order=airline_name.asc`,{headers:HEADERS}),
-                AirportPicker.load(SUPABASE_URL)
+                AirportPicker.load(SUPABASE_URL),
+                AirlinePicker.load(SUPABASE_URL)
             ]);
-            if(!sR.ok||!alR.ok) throw new Error('API error');
-            const seasons=await sR.json(),airlines=await alR.json();
+            if(!sR.ok) throw new Error('API error');
+            const seasons=await sR.json();
 
             seasonInput.innerHTML='<option value="" disabled selected hidden>Select a Year</option>';
             seasons.forEach(s=>{const o=document.createElement('option');o.value=s.season_code;o.textContent=s.season_label;seasonInput.appendChild(o);});
             seasonInput.disabled=false;
-            populateAirlineDatalist(airlines.map(a=>a.airline_name));
             originInput.placeholder=destinationInput.placeholder='City, metro area, or airport code...';
             airlineInput.placeholder='Type to search...';
             originInput.disabled=destinationInput.disabled=airlineInput.disabled=dayInput.disabled=false;
@@ -410,17 +408,17 @@
     form.addEventListener('submit',async function(e){
         e.preventDefault();
         const selectedSeason=seasonInput.value;if(!selectedSeason){alert('Please select a Year first.');return;}
-        const av=airlineInput.value.trim();
-        const hasO=originPicker.hasText(), hasD=destPicker.hasText();
-        if(!hasO&&!hasD&&!av){
+        const hasO=originPicker.hasText(), hasD=destPicker.hasText(), hasA=airlinePicker.hasText();
+        if(!hasO&&!hasD&&!hasA){
             resultsContainer.innerHTML='<p class="status-msg">Please enter at least one additional filter — Origin, Destination, or Airline — to search.</p>';
             return;
         }
         // Origin / destination are optional, but anything typed must resolve to an airport served that year
         if(hasO&&!originPicker.resolve()){originPicker.focus();return;}
         if(hasD&&!destPicker.resolve()){destPicker.focus();return;}
+        if(hasA&&!airlinePicker.resolve()){airlinePicker.focus();return;}
         if(hasO&&hasD){const dset=new Set(destPicker.codes());if(originPicker.codes().some(c=>dset.has(c))){alert('Origin and destination cannot be the same airport or metro area.');return;}}
-        const ov=hasO?originPicker.displayName():'', dv=hasD?destPicker.displayName():'';
+        const ov=hasO?originPicker.displayName():'', dv=hasD?destPicker.displayName():'', av=hasA?airlinePicker.displayName():'';
         lastSearchWasRoute=hasO&&hasD;
         if(activeAbortController)activeAbortController.abort();
         activeAbortController=new AbortController();const signal=activeAbortController.signal;
@@ -434,7 +432,7 @@
             const destFilter   = hasD ? destPicker.filterParam('dest') : null;
             if(originFilter) filters.push(originFilter);
             if(destFilter)   filters.push(destFilter);
-            if(av)filters.push(`airline_name=ilike.${encodeURIComponent('%'+av+'%')}`);
+            if(hasA)filters.push(airlinePicker.filterParam('airline_name'));
             if(dy)filters.push(`days=ilike.${encodeURIComponent('%'+dy+'%')}`);
             const limit=1000,max=2000;let offset=0,keep=true;
             while(keep){
@@ -456,9 +454,9 @@
     }
     clearBtn.addEventListener('click',function(){
         if(activeAbortController)activeAbortController.abort();
-        form.reset();originPicker.clear();destPicker.clear();airlineInput.value='';
+        form.reset();originPicker.clear();destPicker.clear();airlinePicker.clear();
         seasonInput.selectedIndex=dayInput.selectedIndex=0;
-        originPicker.setSeason('','');destPicker.setSeason('','');
+        [originPicker,destPicker,airlinePicker].forEach(p=>p.setSeason('',''));
         resetTimeSliders();
         allFetchedFlights=[];currentResultsPool=[];currentSortColumn='';isSortAscending=true;searchWasTruncated=false;currentPage=0;resultsContainer.innerHTML='';filterSection.classList.add('hidden');
     });
